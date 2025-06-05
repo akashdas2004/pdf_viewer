@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ folder.name }} - Folder View{% endblock %}
+
+{% block content %}
+<div class="px-2 sm:px-4 lg:px-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-3 sm:mb-6">
+        <div class="flex items-center min-w-0 flex-1">
+            <a href="{{ url_for('admin_dashboard') if current_user.is_admin else url_for('user_dashboard') }}" 
+               class="text-gray-500 hover:text-gray-700 mr-2 sm:mr-4 flex-shrink-0">
+                <i class="fas fa-arrow-left"></i>
+                <span class="hidden sm:inline ml-1">Back</span>
+            </a>
+            <div class="flex items-center min-w-0">
+                <i class="fas fa-folder text-yellow-500 text-xl sm:text-2xl mr-2 sm:mr-3"></i>
+                <div class="min-w-0">
+                    <h1 class="text-base sm:text-xl font-semibold text-gray-900 truncate">{{ folder.name }}</h1>
+                    {% if folder.description %}
+                    <p class="text-xs sm:text-sm text-gray-600 truncate">{{ folder.description }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2 sm:space-x-3 ml-2">
+            {% if can_download and pdfs %}
+            <a href="{{ url_for('download_folder', folder_id=folder.id) }}" 
+               class="bg-green-600 text-white px-3 sm:px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm sm:text-base">
+                <i class="fas fa-download mr-1 sm:mr-2"></i>
+                <span class="hidden sm:inline">Download All</span>
+            </a>
+            {% endif %}
+            <span class="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm">
+                <i class="fas fa-file-pdf mr-1"></i>{{ pdfs|length }} PDFs
+            </span>
+        </div>
+    </div>
+
+    <!-- PDFs in Folder -->
+    {% if pdfs %}
+    <div class="bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+                {% for pdf in pdfs %}
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow duration-200">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-file-pdf text-red-500 text-2xl sm:text-3xl"></i>
+                        </div>
+                        <div class="ml-3 sm:ml-4 flex-1 min-w-0">
+                            <h3 class="text-base sm:text-lg font-medium text-gray-900 truncate">{{ pdf.original_filename }}</h3>
+                            {% if pdf.uploaded_by_name %}
+                            <p class="text-xs sm:text-sm text-gray-500 mt-1">Uploaded by: {{ pdf.uploaded_by_name }}</p>
+                            {% endif %}
+                            {% if current_user.is_admin %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                                <i class="fas fa-download mr-1"></i>Full Access
+                            </span>
+                            {% else %}
+                                {% if pdf.can_download %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                                    <i class="fas fa-download mr-1"></i>Download Allowed
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
+                                    <i class="fas fa-eye mr-1"></i>View Only
+                                </span>
+                                {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <a href="{{ url_for('view_pdf', pdf_id=pdf.id) }}" 
+                           class="flex-1 bg-blue-600 text-white text-center px-4 py-2.5 sm:py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 text-sm sm:text-base font-medium">
+                            <i class="fas fa-eye mr-2"></i>View PDF
+                        </a>
+                        {% if current_user.is_admin or (pdf.can_download if not current_user.is_admin else True) %}
+                        <a href="{{ url_for('download_pdf', pdf_id=pdf.id) }}" 
+                           class="bg-green-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200 text-center text-sm sm:text-base font-medium">
+                            <i class="fas fa-download"></i>
+                            <span class="hidden sm:inline ml-1">Download</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <div class="text-center py-8 sm:py-12">
+                <div class="mx-auto h-16 w-16 sm:h-24 sm:w-24 flex items-center justify-center rounded-full bg-gray-100">
+                    <i class="fas fa-file-pdf text-gray-400 text-2xl sm:text-3xl"></i>
+                </div>
+                <h3 class="mt-4 text-base sm:text-lg font-medium text-gray-900">No PDFs in this folder</h3>
+                <p class="mt-2 text-sm text-gray-500">This folder doesn't contain any PDF documents yet.</p>
+                {% if current_user.is_admin %}
+                <p class="mt-1 text-sm text-gray-500">Upload PDFs to this folder from the admin dashboard.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

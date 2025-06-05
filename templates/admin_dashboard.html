@@ -7,11 +7,10 @@
     <div class="sm:flex sm:items-center mb-4 sm:mb-6">
         <div class="sm:flex-auto">
             <h1 class="text-xl sm:text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-            <p class="mt-1 sm:mt-2 text-sm text-gray-700">Manage users, upload PDFs, and assign access permissions.</p>
+            <p class="mt-1 sm:mt-2 text-sm text-gray-700">Manage users, folders, upload PDFs, and assign access permissions.</p>
         </div>
     </div>
 
-    <!-- Mobile-optimized forms -->
     <!-- Add User Section -->
     <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
         <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
@@ -70,21 +69,88 @@
         </div>
     </div>
 
+    <!-- Add Folder Section -->
+    <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
+                <i class="fas fa-folder-plus text-yellow-500 mr-2"></i>Create New Folder
+            </h3>
+            <form method="POST" action="{{ url_for('add_folder') }}" class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-4">
+                <div class="sm:col-span-1">
+                    <input type="text" name="folder_name" placeholder="Folder Name" required
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 text-base sm:text-sm py-2.5 sm:py-2">
+                </div>
+                <div class="sm:col-span-1">
+                    <input type="text" name="folder_description" placeholder="Description (optional)"
+                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-yellow-500 focus:ring-yellow-500 text-base sm:text-sm py-2.5 sm:py-2">
+                </div>
+                <div class="sm:col-span-1">
+                    <button type="submit" 
+                            class="w-full bg-yellow-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-base sm:text-sm font-medium">
+                        Create Folder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Upload PDF Section -->
     <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
         <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
             <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
-                <i class="fas fa-upload text-green-500 mr-2"></i>Upload PDF
+                <i class="fas fa-upload text-green-500 mr-2"></i>Upload Single PDF
             </h3>
-            <form method="POST" action="{{ url_for('upload_pdf') }}" enctype="multipart/form-data" class="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:space-x-4">
-                <div class="flex-1">
+            <form method="POST" action="{{ url_for('upload_pdf') }}" enctype="multipart/form-data" class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-4">
+                <div class="sm:col-span-1">
+                    <select name="folder_id" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 text-base sm:text-sm py-2.5 sm:py-2">
+                        <option value="">Select Folder</option>
+                        {% for folder in folders %}
+                        <option value="{{ folder.id }}">{{ folder.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sm:col-span-1">
                     <input type="file" name="pdf_file" accept=".pdf" required
                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 sm:file:py-2">
                 </div>
-                <button type="submit" 
-                        class="w-full sm:w-auto bg-green-600 text-white px-6 py-2.5 sm:py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm font-medium">
-                    Upload
-                </button>
+                <div class="sm:col-span-1">
+                    <button type="submit" 
+                            class="w-full bg-green-600 text-white px-6 py-2.5 sm:py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-base sm:text-sm font-medium">
+                        Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Batch Upload Section -->
+    <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
+                <i class="fas fa-cloud-upload-alt text-indigo-500 mr-2"></i>Batch Upload PDFs
+            </h3>
+            <form method="POST" action="{{ url_for('batch_upload') }}" enctype="multipart/form-data" class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-4">
+                <div class="sm:col-span-1">
+                    <select name="batch_folder_id" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm py-2.5 sm:py-2">
+                        <option value="">Select Folder</option>
+                        {% for folder in folders %}
+                        <option value="{{ folder.id }}">{{ folder.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sm:col-span-1">
+                    <input type="file" name="batch_files" accept=".pdf" multiple required
+                           class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 sm:file:py-2">
+                    <p class="text-xs text-gray-500 mt-1">Select multiple PDF files (Ctrl+Click or Cmd+Click)</p>
+                </div>
+                <div class="sm:col-span-1">
+                    <button type="submit" 
+                            class="w-full bg-indigo-600 text-white px-6 py-2.5 sm:py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base sm:text-sm font-medium">
+                        Batch Upload
+                    </button>
+                </div>
             </form>
         </div>
     </div>
@@ -93,12 +159,12 @@
     <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
         <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
             <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
-                <i class="fas fa-user-check text-indigo-500 mr-2"></i>Assign PDF to User
+                <i class="fas fa-user-check text-teal-500 mr-2"></i>Assign PDF to User
             </h3>
             <form method="POST" action="{{ url_for('assign_pdf') }}" class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-4 sm:gap-4">
                 <div class="sm:col-span-1">
                     <select name="user_id" required
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm py-2.5 sm:py-2">
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base sm:text-sm py-2.5 sm:py-2">
                         <option value="">Select User</option>
                         {% for user in users %}
                         <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
@@ -107,25 +173,131 @@
                 </div>
                 <div class="sm:col-span-1">
                     <select name="pdf_id" required
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-base sm:text-sm py-2.5 sm:py-2">
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 text-base sm:text-sm py-2.5 sm:py-2">
                         <option value="">Select PDF</option>
                         {% for pdf in pdfs %}
-                        <option value="{{ pdf.id }}">{{ pdf.original_filename }}</option>
+                        <option value="{{ pdf.id }}">{{ pdf.original_filename }} ({{ pdf.folder_name or 'No Folder' }})</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="flex items-center sm:col-span-1">
                     <input type="checkbox" name="can_download" id="can_download"
-                           class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                           class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
                     <label for="can_download" class="ml-2 block text-sm text-gray-900">Allow Download</label>
                 </div>
                 <div class="sm:col-span-1">
                     <button type="submit" 
-                            class="w-full bg-indigo-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-base sm:text-sm font-medium">
+                            class="w-full bg-teal-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base sm:text-sm font-medium">
                         Assign PDF
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Assign Folder Section -->
+    <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
+                <i class="fas fa-folder-open text-orange-500 mr-2"></i>Assign Folder to User
+            </h3>
+            <form method="POST" action="{{ url_for('assign_folder') }}" class="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-4 sm:gap-4">
+                <div class="sm:col-span-1">
+                    <select name="folder_user_id" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 text-base sm:text-sm py-2.5 sm:py-2">
+                        <option value="">Select User</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sm:col-span-1">
+                    <select name="folder_assign_id" required
+                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 text-base sm:text-sm py-2.5 sm:py-2">
+                        <option value="">Select Folder</option>
+                        {% for folder in folders %}
+                        <option value="{{ folder.id }}">{{ folder.name }} ({{ folder.pdf_count }} PDFs)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-center sm:col-span-1">
+                    <input type="checkbox" name="folder_can_download" id="folder_can_download"
+                           class="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded">
+                    <label for="folder_can_download" class="ml-2 block text-sm text-gray-900">Allow Download</label>
+                </div>
+                <div class="sm:col-span-1">
+                    <button type="submit" 
+                            class="w-full bg-orange-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 text-base sm:text-sm font-medium">
+                        Assign Folder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Folders List -->
+    <div class="mt-4 sm:mt-8 bg-white shadow rounded-lg mobile-card">
+        <div class="px-3 sm:px-4 py-4 sm:py-5 lg:p-6">
+            <h3 class="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
+                <i class="fas fa-folder text-yellow-500 mr-2"></i>All Folders ({{ folders|length }})
+            </h3>
+            {% if folders %}
+            <div class="mobile-scroll">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300 mobile-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folder</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PDFs</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created By</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for folder in folders %}
+                            <tr>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    <div class="flex items-center">
+                                        <i class="fas fa-folder text-yellow-500 mr-2"></i>
+                                        <div class="truncate max-w-32 sm:max-w-none">{{ folder.name }}</div>
+                                    </div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 text-sm text-gray-500">
+                                    <div class="truncate max-w-32 sm:max-w-none">{{ folder.description or '-' }}</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {{ folder.pdf_count }} PDFs
+                                    </span>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">{{ folder.created_by_name or 'Unknown' }}</td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <div class="flex items-center space-x-2 sm:space-x-3">
+                                        <a href="{{ url_for('view_folder', folder_id=folder.id) }}" 
+                                           class="text-blue-600 hover:text-blue-900 p-1">
+                                            <i class="fas fa-eye"></i>
+                                            <span class="hidden sm:inline ml-1">View</span>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('delete_folder', folder_id=folder.id) }}" class="inline" 
+                                              onsubmit="return confirm('Are you sure you want to delete folder {{ folder.name }}? This will delete all PDFs in this folder and cannot be undone.')">
+                                            <button type="submit" 
+                                                    class="text-red-600 hover:text-red-900 p-1">
+                                                <i class="fas fa-trash"></i>
+                                                <span class="hidden sm:inline ml-1">Delete</span>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-4 text-sm">No folders found.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -204,6 +376,7 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                                <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folder</th>
                                 <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded By</th>
                                 <th class="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
@@ -213,6 +386,11 @@
                             <tr>
                                 <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                     <div class="truncate max-w-32 sm:max-w-none">{{ pdf.original_filename }}</div>
+                                </td>
+                                <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        <i class="fas fa-folder mr-1"></i>{{ pdf.folder_name or 'No Folder' }}
+                                    </span>
                                 </td>
                                 <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">{{ pdf.uploaded_by_name or 'Unknown' }}</td>
                                 <td class="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-sm text-gray-500">
