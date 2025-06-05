@@ -245,14 +245,13 @@
                     </nav>
                 </div>
             </div>
-            <!-- Main Content Area -->
-            <div class="flex-1">
-                <div class="py-6">
-                    {% block content %}{% endblock %}
-                </div>
+            <!-- Main Content Area with Sidebar -->
+            <div class="flex-1 py-6">
+                {% block content %}{% endblock %}
             </div>
         </div>
         {% else %}
+        <!-- Main Content Area without Sidebar -->
         <div class="py-6">
             {% block content %}{% endblock %}
         </div>
