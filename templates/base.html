@@ -6,26 +6,54 @@
     <title>{% block title %}PDF Management System{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Custom mobile optimizations */
+        @media (max-width: 640px) {
+            .mobile-scroll {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .mobile-table {
+                min-width: 600px;
+            }
+            
+            .mobile-card {
+                margin: 0.5rem;
+            }
+        }
+        
+        /* Prevent zoom on input focus on iOS */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+            select, textarea, input[type="text"], input[type="password"], input[type="email"] {
+                font-size: 16px;
+            }
+        }
+    </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <!-- Navigation -->
     {% if current_user.is_authenticated %}
     <nav class="bg-white shadow-sm border-b">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+            <div class="flex justify-between h-14 sm:h-16">
                 <div class="flex items-center">
-                    <h1 class="text-xl font-semibold text-gray-900">
-                        <i class="fas fa-file-pdf text-red-500 mr-2"></i>
-                        PDF Management
+                    <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
+                        <i class="fas fa-file-pdf text-red-500 mr-1 sm:mr-2"></i>
+                        <span class="hidden sm:inline">PDF Management</span>
+                        <span class="sm:hidden">PDFs</span>
                     </h1>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-gray-700">Welcome, {{ current_user.username }}</span>
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <span class="text-sm sm:text-base text-gray-700 truncate max-w-24 sm:max-w-none">
+                        <span class="hidden sm:inline">Welcome, </span>{{ current_user.username }}
+                    </span>
                     {% if current_user.is_admin %}
-                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Admin</span>
+                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-1.5 sm:px-2.5 py-0.5 rounded">Admin</span>
                     {% endif %}
-                    <a href="{{ url_for('logout') }}" class="text-gray-500 hover:text-gray-700">
-                        <i class="fas fa-sign-out-alt"></i> Logout
+                    <a href="{{ url_for('logout') }}" class="text-gray-500 hover:text-gray-700 p-1">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span class="hidden sm:inline ml-1">Logout</span>
                     </a>
                 </div>
             </div>
@@ -36,9 +64,9 @@
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages() %}
         {% if messages %}
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-2 sm:mt-4">
             {% for message in messages %}
-            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
+            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-2 sm:mb-4 text-sm sm:text-base">
                 {{ message }}
             </div>
             {% endfor %}
@@ -47,7 +75,7 @@
     {% endwith %}
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <main class="max-w-7xl mx-auto py-3 sm:py-6 px-2 sm:px-6 lg:px-8">
         {% block content %}{% endblock %}
     </main>
 </body>

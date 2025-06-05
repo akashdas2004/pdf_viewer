@@ -1,238 +1,65 @@
 {% extends "base.html" %}
 
-{% block title %}{{ pdf.original_filename }} - PDF Viewer{% endblock %}
+{% block title %}My PDFs - PDF Management{% endblock %}
 
 {% block content %}
-<div class="px-4 sm:px-6 lg:px-8">
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center">
-            <a href="{{ url_for('user_dashboard') if not current_user.is_admin else url_for('admin_dashboard') }}" 
-               class="text-gray-500 hover:text-gray-700 mr-4">
-                <i class="fas fa-arrow-left"></i> Back
-            </a>
-            <h1 class="text-xl font-semibold text-gray-900">{{ pdf.original_filename }}</h1>
-        </div>
-        <div class="flex items-center space-x-3">
-            {% if can_download %}
-            <a href="{{ url_for('download_pdf', pdf_id=pdf.id) }}" 
-               class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500">
-                <i class="fas fa-download mr-2"></i>Download
-            </a>
-            {% else %}
-            <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">
-                <i class="fas fa-eye mr-1"></i>View Only
-            </span>
-            {% endif %}
+<div class="px-2 sm:px-4 lg:px-8">
+    <div class="sm:flex sm:items-center mb-4 sm:mb-6">
+        <div class="sm:flex-auto">
+            <h1 class="text-xl sm:text-2xl font-semibold text-gray-900">My Assigned PDFs</h1>
+            <p class="mt-1 sm:mt-2 text-sm text-gray-700">View and access your assigned PDF documents.</p>
         </div>
     </div>
 
-    <!-- PDF Viewer Container -->
-    <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div id="pdf-viewer" class="relative">
-            <!-- PDF.js will render here -->
-            <div id="pdf-container" class="min-h-screen bg-gray-100">
-                <div class="flex items-center justify-center h-64">
-                    <div class="text-center">
-                        <i class="fas fa-spinner fa-spin text-blue-500 text-3xl mb-4"></i>
-                        <p class="text-gray-600">Loading PDF...</p>
+    {% if pdfs %}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
+        {% for pdf in pdfs %}
+        <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-200 mobile-card">
+            <div class="p-4 sm:p-6">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-file-pdf text-red-500 text-2xl sm:text-3xl"></i>
+                    </div>
+                    <div class="ml-3 sm:ml-4 flex-1 min-w-0">
+                        <h3 class="text-base sm:text-lg font-medium text-gray-900 truncate">{{ pdf.original_filename }}</h3>
+                        <p class="text-xs sm:text-sm text-gray-500 mt-1">Assigned: {{ pdf.assigned_date[:10] }}</p>
+                        {% if pdf.can_download %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                            <i class="fas fa-download mr-1"></i>Download Allowed
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
+                            <i class="fas fa-eye mr-1"></i>View Only
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- PDF.js Integration -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script>
-// Configure PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-// Security settings - disable download if not allowed
-const canDownload = {{ can_download|tojson }};
-
-// Disable right-click context menu if download not allowed
-if (!canDownload) {
-    document.addEventListener('contextmenu', function(e) {
-        e.preventDefault();
-        return false;
-    });
-    
-    // Disable keyboard shortcuts for saving/printing
-    document.addEventListener('keydown', function(e) {
-        // Disable Ctrl+S (Save), Ctrl+P (Print), F12 (DevTools)
-        if ((e.ctrlKey && (e.key === 's' || e.key === 'p')) || e.key === 'F12') {
-            e.preventDefault();
-            return false;
-        }
-    });
-}
-
-// Load and render PDF
-const pdfUrl = '{{ url_for("serve_pdf", pdf_id=pdf.id) }}';
-const container = document.getElementById('pdf-container');
-
-async function loadPDF() {
-    try {
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
-        const pdf = await loadingTask.promise;
-        
-        // Clear loading message
-        container.innerHTML = '';
-        
-        // Create controls
-        const controls = document.createElement('div');
-        controls.className = 'bg-gray-800 text-white p-4 flex items-center justify-between sticky top-0 z-10';
-        controls.innerHTML = `
-            <div class="flex items-center space-x-4">
-                <button id="prev-page" class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">
-                    <i class="fas fa-chevron-left"></i> Previous
-                </button>
-                <span id="page-info" class="text-sm">Page 1 of ${pdf.numPages}</span>
-                <button id="next-page" class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">
-                    Next <i class="fas fa-chevron-right"></i>
-                </button>
-            </div>
-            <div class="flex items-center space-x-4">
-                <button id="zoom-out" class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">
-                    <i class="fas fa-search-minus"></i>
-                </button>
-                <span id="zoom-level" class="text-sm">100%</span>
-                <button id="zoom-in" class="bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded">
-                    <i class="fas fa-search-plus"></i>
-                </button>
-            </div>
-        `;
-        container.appendChild(controls);
-        
-        // Create canvas container
-        const canvasContainer = document.createElement('div');
-        canvasContainer.className = 'flex justify-center p-4 bg-gray-100';
-        container.appendChild(canvasContainer);
-        
-        let currentPage = 1;
-        let currentScale = 1.0;
-        
-        async function renderPage(pageNum, scale = 1.0) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({ scale });
-            
-            // Clear previous canvas
-            canvasContainer.innerHTML = '';
-            
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            canvas.className = 'shadow-lg border';
-            
-            // Disable right-click on canvas if download not allowed
-            if (!canDownload) {
-                canvas.addEventListener('contextmenu', function(e) {
-                    e.preventDefault();
-                    return false;
-                });
-            }
-            
-            canvasContainer.appendChild(canvas);
-            
-            const renderContext = {
-                canvasContext: context,
-                viewport: viewport
-            };
-            
-            await page.render(renderContext).promise;
-            
-            // Update page info
-            document.getElementById('page-info').textContent = `Page ${pageNum} of ${pdf.numPages}`;
-            document.getElementById('zoom-level').textContent = `${Math.round(scale * 100)}%`;
-            
-            // Update button states
-            document.getElementById('prev-page').disabled = pageNum <= 1;
-            document.getElementById('next-page').disabled = pageNum >= pdf.numPages;
-        }
-        
-        // Initial render
-        await renderPage(currentPage, currentScale);
-        
-        // Event listeners
-        document.getElementById('prev-page').addEventListener('click', async () => {
-            if (currentPage > 1) {
-                currentPage--;
-                await renderPage(currentPage, currentScale);
-            }
-        });
-        
-        document.getElementById('next-page').addEventListener('click', async () => {
-            if (currentPage < pdf.numPages) {
-                currentPage++;
-                await renderPage(currentPage, currentScale);
-            }
-        });
-        
-        document.getElementById('zoom-in').addEventListener('click', async () => {
-            currentScale = Math.min(currentScale + 0.25, 3.0);
-            await renderPage(currentPage, currentScale);
-        });
-        
-        document.getElementById('zoom-out').addEventListener('click', async () => {
-            currentScale = Math.max(currentScale - 0.25, 0.5);
-            await renderPage(currentPage, currentScale);
-        });
-        
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'ArrowLeft' && currentPage > 1) {
-                currentPage--;
-                renderPage(currentPage, currentScale);
-            } else if (e.key === 'ArrowRight' && currentPage < pdf.numPages) {
-                currentPage++;
-                renderPage(currentPage, currentScale);
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error loading PDF:', error);
-        container.innerHTML = `
-            <div class="flex items-center justify-center h-64">
-                <div class="text-center">
-                    <i class="fas fa-exclamation-triangle text-red-500 text-3xl mb-4"></i>
-                    <p class="text-red-600">Error loading PDF. Please try again.</p>
+                <div class="mt-4 sm:mt-6 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                    <a href="{{ url_for('view_pdf', pdf_id=pdf.id) }}" 
+                       class="flex-1 bg-blue-600 text-white text-center px-4 py-2.5 sm:py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200 text-sm sm:text-base font-medium">
+                        <i class="fas fa-eye mr-2"></i>View PDF
+                    </a>
+                    {% if pdf.can_download %}
+                    <a href="{{ url_for('download_pdf', pdf_id=pdf.id) }}" 
+                       class="bg-green-600 text-white px-4 py-2.5 sm:py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200 text-center text-sm sm:text-base font-medium">
+                        <i class="fas fa-download"></i>
+                        <span class="hidden sm:inline ml-1">Download</span>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
-        `;
-    }
-}
-
-// Load PDF when page is ready
-document.addEventListener('DOMContentLoaded', loadPDF);
-</script>
-
-<style>
-/* Additional security styles */
-{% if not can_download %}
-/* Disable text selection */
-body {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-/* Disable drag and drop */
-* {
-    -webkit-user-drag: none;
-    -khtml-user-drag: none;
-    -moz-user-drag: none;
-    -o-user-drag: none;
-    user-drag: none;
-}
-
-/* Hide scrollbars to prevent right-click */
-::-webkit-scrollbar {
-    display: none;
-}
-{% endif %}
-</style>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-8 sm:py-12">
+        <div class="mx-auto h-16 w-16 sm:h-24 sm:w-24 flex items-center justify-center rounded-full bg-gray-100">
+            <i class="fas fa-file-pdf text-gray-400 text-2xl sm:text-3xl"></i>
+        </div>
+        <h3 class="mt-4 text-base sm:text-lg font-medium text-gray-900">No PDFs assigned</h3>
+        <p class="mt-2 text-sm text-gray-500">You don't have any PDF documents assigned to you yet.</p>
+        <p class="mt-1 text-sm text-gray-500">Contact your administrator to get access to documents.</p>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}
