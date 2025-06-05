@@ -270,9 +270,7 @@ def assign_pdf():
 @app.route('/dashboard')
 @login_required
 def user_dashboard():
-    if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
-    
+    # Don't redirect admin to admin dashboard - let them see user view if they want
     conn = get_db_connection()
     user_pdfs = conn.execute('''
         SELECT p.*, upa.can_download, upa.assigned_date
@@ -293,9 +291,11 @@ def view_pdf(pdf_id):
     
     try:
         if current_user.is_admin:
+            # Admin can view any PDF
             pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
             can_download = True
         else:
+            # Regular users need assignment
             access = conn.execute('''
                 SELECT p.*, upa.can_download
                 FROM pdfs p
@@ -315,12 +315,18 @@ def view_pdf(pdf_id):
         
         if not pdf:
             flash('PDF not found')
-            return redirect(url_for('user_dashboard'))
+            if current_user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('user_dashboard'))
         
         # Check if file exists
         if not os.path.exists(pdf['file_path']):
             flash('PDF file not found on server')
-            return redirect(url_for('user_dashboard'))
+            if current_user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('user_dashboard'))
         
         return render_template('pdf_viewer.html', pdf=pdf, can_download=can_download)
         
@@ -328,7 +334,10 @@ def view_pdf(pdf_id):
         conn.close()
         print(f"Error in view_pdf: {e}")
         flash('Error accessing PDF')
-        return redirect(url_for('user_dashboard'))
+        if current_user.is_admin:
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
 
 @app.route('/serve_pdf/<int:pdf_id>')
 @login_required
@@ -338,8 +347,10 @@ def serve_pdf(pdf_id):
     
     try:
         if current_user.is_admin:
+            # Admin can access any PDF
             pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
         else:
+            # Regular users need assignment
             access = conn.execute('''
                 SELECT p.*
                 FROM pdfs p
@@ -377,9 +388,11 @@ def download_pdf(pdf_id):
     
     try:
         if current_user.is_admin:
+            # Admin can download any PDF
             pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
             can_download = True
         else:
+            # Regular users need download permission
             access = conn.execute('''
                 SELECT p.*, upa.can_download
                 FROM pdfs p
@@ -399,12 +412,18 @@ def download_pdf(pdf_id):
         
         if not pdf or not can_download:
             flash('Download not allowed')
-            return redirect(url_for('user_dashboard'))
+            if current_user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('user_dashboard'))
         
         # Check if file exists
         if not os.path.exists(pdf['file_path']):
             flash('PDF file not found on server')
-            return redirect(url_for('user_dashboard'))
+            if current_user.is_admin:
+                return redirect(url_for('admin_dashboard'))
+            else:
+                return redirect(url_for('user_dashboard'))
         
         return send_file(pdf['file_path'], as_attachment=True, download_name=pdf['original_filename'])
         
@@ -412,7 +431,10 @@ def download_pdf(pdf_id):
         conn.close()
         print(f"Error in download_pdf: {e}")
         flash('Error downloading PDF')
-        return redirect(url_for('user_dashboard'))
+        if current_user.is_admin:
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('user_dashboard'))
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -527,9 +549,25 @@ def debug_assignments():
         JOIN pdfs p ON upa.pdf_id = p.id
         ORDER BY upa.assigned_date DESC
     ''').fetchall()
+    
+    all_pdfs = conn.execute('SELECT * FROM pdfs').fetchall()
+    all_users = conn.execute('SELECT * FROM users').fetchall()
     conn.close()
     
-    result = "<h2>PDF Assignments Debug</h2><table border='1'><tr><th>User</th><th>PDF</th><th>Can Download</th><th>Assigned Date</th></tr>"
+    result = "<h2>PDF Management Debug</h2>"
+    
+    result += "<h3>All PDFs in System:</h3><table border='1'><tr><th>ID</th><th>Filename</th><th>Uploaded By</th><th>File Path</th><th>File Exists</th></tr>"
+    for pdf in all_pdfs:
+        file_exists = "Yes" if os.path.exists(pdf['file_path']) else "No"
+        result += f"<tr><td>{pdf['id']}</td><td>{pdf['original_filename']}</td><td>{pdf['uploaded_by']}</td><td>{pdf['file_path']}</td><td>{file_exists}</td></tr>"
+    result += "</table><br>"
+    
+    result += "<h3>All Users:</h3><table border='1'><tr><th>ID</th><th>Username</th><th>Email</th><th>Is Admin</th></tr>"
+    for user in all_users:
+        result += f"<tr><td>{user['id']}</td><td>{user['username']}</td><td>{user['email']}</td><td>{user['is_admin']}</td></tr>"
+    result += "</table><br>"
+    
+    result += "<h3>PDF Assignments:</h3><table border='1'><tr><th>User</th><th>PDF</th><th>Can Download</th><th>Assigned Date</th></tr>"
     for assignment in assignments:
         result += f"<tr><td>{assignment['username']}</td><td>{assignment['original_filename']}</td><td>{assignment['can_download']}</td><td>{assignment['assigned_date']}</td></tr>"
     result += "</table>"
