@@ -28,16 +28,30 @@ def init_database():
         )
     ''')
     
-    # PDFs table
+    # Folders table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS folders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (created_by) REFERENCES users (id)
+        )
+    ''')
+    
+    # PDFs table (updated with folder_id)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pdfs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             filename TEXT NOT NULL,
             original_filename TEXT NOT NULL,
             file_path TEXT NOT NULL,
+            folder_id INTEGER,
             uploaded_by INTEGER,
             upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (uploaded_by) REFERENCES users (id)
+            FOREIGN KEY (uploaded_by) REFERENCES users (id),
+            FOREIGN KEY (folder_id) REFERENCES folders (id)
         )
     ''')
     
@@ -55,6 +69,20 @@ def init_database():
         )
     ''')
     
+    # User folder access table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_folder_access (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            folder_id INTEGER,
+            can_download BOOLEAN DEFAULT FALSE,
+            assigned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (folder_id) REFERENCES folders (id),
+            UNIQUE(user_id, folder_id)
+        )
+    ''')
+    
     print("Tables created successfully!")
     
     # Create sample users
@@ -66,6 +94,10 @@ def init_database():
         'INSERT OR IGNORE INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
         ('admin', 'admin@example.com', admin_password, True)
     )
+    
+    # Get admin ID for folder creation
+    admin_user = cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
+    admin_id = admin_user[0] if admin_user else None
     
     # Sample regular users
     users_data = [
@@ -81,6 +113,21 @@ def init_database():
             (username, email, password_hash)
         )
     
+    # Create default folders
+    print("Creating default folders...")
+    default_folders = [
+        ('General', 'Default folder for uncategorized PDFs'),
+        ('Documents', 'Important documents and forms'),
+        ('Reports', 'Monthly and annual reports'),
+        ('Training', 'Training materials and guides'),
+    ]
+    
+    for folder_name, folder_description in default_folders:
+        cursor.execute(
+            'INSERT OR IGNORE INTO folders (name, description, created_by) VALUES (?, ?, ?)',
+            (folder_name, folder_description, admin_id)
+        )
+    
     # Commit changes
     conn.commit()
     
@@ -92,6 +139,14 @@ def init_database():
     for user in users:
         role = "Admin" if user[2] else "User"
         print(f"  - {user[0]} ({user[1]}) - {role}")
+    
+    # Display created folders
+    cursor.execute('SELECT name, description FROM folders')
+    folders = cursor.fetchall()
+    
+    print(f"\nCreated {len(folders)} folders:")
+    for folder in folders:
+        print(f"  - {folder[0]}: {folder[1]}")
     
     # Create upload directory
     upload_dir = 'static/pdfs'
@@ -105,6 +160,7 @@ def init_database():
     print("\nLogin credentials:")
     print("  Admin: username='admin', password='admin123'")
     print("  Users: username='john_doe', password='password123' (and similar for other users)")
+    print("\nDefault folders created: General, Documents, Reports, Training")
 
 if __name__ == "__main__":
     init_database()
