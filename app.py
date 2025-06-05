@@ -234,6 +234,131 @@ def admin_dashboard():
     
     return render_template('admin_dashboard.html', users=users, pdfs=pdfs, folders=folders)
 
+@app.route('/admin/access-management')
+@login_required
+def access_management():
+    if not current_user.is_admin:
+        abort(403)
+    
+    conn = get_db_connection()
+    
+    # Get all users (except admins)
+    users = conn.execute('SELECT * FROM users WHERE is_admin = FALSE').fetchall()
+    
+    # Get all folders
+    folders = conn.execute('SELECT * FROM folders').fetchall()
+    
+    # Get folder access data
+    folder_access = conn.execute('''
+        SELECT ufa.*, u.username, f.name as folder_name
+        FROM user_folder_access ufa
+        JOIN users u ON ufa.user_id = u.id
+        JOIN folders f ON ufa.folder_id = f.id
+        ORDER BY u.username, f.name
+    ''').fetchall()
+    
+    # Get PDF access data
+    pdf_access = conn.execute('''
+        SELECT upa.*, u.username, p.original_filename, f.name as folder_name
+        FROM user_pdf_access upa
+        JOIN users u ON upa.user_id = u.id
+        JOIN pdfs p ON upa.pdf_id = p.id
+        LEFT JOIN folders f ON p.folder_id = f.id
+        ORDER BY u.username, f.name, p.original_filename
+    ''').fetchall()
+    
+    # Get user access summary
+    user_access_summary = {}
+    for user in users:
+        # Count folders and PDFs the user has access to
+        folder_count = conn.execute('''
+            SELECT COUNT(*) as count FROM user_folder_access
+            WHERE user_id = ?
+        ''', (user['id'],)).fetchone()['count']
+        
+        pdf_count = conn.execute('''
+            SELECT COUNT(*) as count FROM user_pdf_access
+            WHERE user_id = ?
+        ''', (user['id'],)).fetchone()['count']
+        
+        user_access_summary[user['id']] = {
+            'folder_count': folder_count,
+            'pdf_count': pdf_count
+        }
+    
+    conn.close()
+    
+    return render_template('access_management.html', 
+                          users=users, 
+                          folders=folders, 
+                          folder_access=folder_access, 
+                          pdf_access=pdf_access,
+                          user_access_summary=user_access_summary)
+
+@app.route('/admin/user-access/<int:user_id>')
+@login_required
+def user_access_detail(user_id):
+    if not current_user.is_admin:
+        abort(403)
+    
+    conn = get_db_connection()
+    
+    # Get user info
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not user:
+        conn.close()
+        flash('User not found')
+        return redirect(url_for('access_management'))
+    
+    # Get folder access for this user
+    folder_access = conn.execute('''
+        SELECT ufa.*, f.name as folder_name, f.description
+        FROM user_folder_access ufa
+        JOIN folders f ON ufa.folder_id = f.id
+        WHERE ufa.user_id = ?
+        ORDER BY f.name
+    ''', (user_id,)).fetchall()
+    
+    # Get PDF access for this user
+    pdf_access = conn.execute('''
+        SELECT upa.*, p.original_filename, f.name as folder_name
+        FROM user_pdf_access upa
+        JOIN pdfs p ON upa.pdf_id = p.id
+        LEFT JOIN folders f ON p.folder_id = f.id
+        WHERE upa.user_id = ?
+        ORDER BY f.name, p.original_filename
+    ''', (user_id,)).fetchall()
+    
+    # Get folders user doesn't have access to
+    available_folders = conn.execute('''
+        SELECT f.* FROM folders f
+        WHERE f.id NOT IN (
+            SELECT folder_id FROM user_folder_access
+            WHERE user_id = ?
+        )
+        ORDER BY f.name
+    ''', (user_id,)).fetchall()
+    
+    # Get PDFs user doesn't have access to
+    available_pdfs = conn.execute('''
+        SELECT p.*, f.name as folder_name FROM pdfs p
+        LEFT JOIN folders f ON p.folder_id = f.id
+        WHERE p.id NOT IN (
+            SELECT pdf_id FROM user_pdf_access
+            WHERE user_id = ?
+        )
+        ORDER BY f.name, p.original_filename
+    ''', (user_id,)).fetchall()
+    
+    conn.close()
+    
+    return render_template('user_access_detail.html', 
+                          user=user, 
+                          folder_access=folder_access, 
+                          pdf_access=pdf_access,
+                          available_folders=available_folders,
+                          available_pdfs=available_pdfs)
+
 @app.route('/admin/add_user', methods=['POST'])
 @login_required
 def add_user():
@@ -452,20 +577,77 @@ def assign_folder():
     
     return redirect(url_for('admin_dashboard'))
 
+@app.route('/admin/revoke_folder_access', methods=['POST'])
+@login_required
+def revoke_folder_access():
+    if not current_user.is_admin:
+        abort(403)
+    
+    user_id = request.form['user_id']
+    folder_id = request.form['folder_id']
+    
+    try:
+        conn = get_db_connection()
+        
+        # Remove folder access
+        conn.execute(
+            'DELETE FROM user_folder_access WHERE user_id = ? AND folder_id = ?',
+            (user_id, folder_id)
+        )
+        
+        # Remove access to all PDFs in the folder
+        pdfs_in_folder = conn.execute(
+            'SELECT id FROM pdfs WHERE folder_id = ?', (folder_id,)
+        ).fetchall()
+        
+        for pdf in pdfs_in_folder:
+            conn.execute(
+                'DELETE FROM user_pdf_access WHERE user_id = ? AND pdf_id = ?',
+                (user_id, pdf['id'])
+            )
+        
+        conn.commit()
+        conn.close()
+        flash('Access to folder and its PDFs revoked successfully')
+    except Exception as e:
+        flash('Error revoking folder access')
+        print(f"Error in revoke_folder_access: {e}")
+    
+    # Redirect back to the user access detail page if coming from there
+    if request.referrer and 'user-access' in request.referrer:
+        return redirect(request.referrer)
+    return redirect(url_for('access_management'))
+
+@app.route('/admin/revoke_pdf_access', methods=['POST'])
+@login_required
+def revoke_pdf_access():
+    if not current_user.is_admin:
+        abort(403)
+    
+    user_id = request.form['user_id']
+    pdf_id = request.form['pdf_id']
+    
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            'DELETE FROM user_pdf_access WHERE user_id = ? AND pdf_id = ?',
+            (user_id, pdf_id)
+        )
+        conn.commit()
+        conn.close()
+        flash('PDF access revoked successfully')
+    except Exception as e:
+        flash('Error revoking PDF access')
+    
+    # Redirect back to the user access detail page if coming from there
+    if request.referrer and 'user-access' in request.referrer:
+        return redirect(request.referrer)
+    return redirect(url_for('access_management'))
+
 @app.route('/dashboard')
 @login_required
 def user_dashboard():
     conn = get_db_connection()
-    
-    # Get user's assigned PDFs with folder information
-    user_pdfs = conn.execute('''
-        SELECT p.*, upa.can_download, upa.assigned_date, f.name as folder_name
-        FROM pdfs p
-        JOIN user_pdf_access upa ON p.id = upa.pdf_id
-        LEFT JOIN folders f ON p.folder_id = f.id
-        WHERE upa.user_id = ?
-        ORDER BY f.name, p.original_filename
-    ''', (current_user.id,)).fetchall()
     
     # Get user's assigned folders
     user_folders = conn.execute('''
@@ -477,6 +659,16 @@ def user_dashboard():
         WHERE ufa.user_id = ?
         GROUP BY f.id
         ORDER BY f.name
+    ''', (current_user.id,)).fetchall()
+    
+    # Get user's assigned PDFs with folder information
+    user_pdfs = conn.execute('''
+        SELECT p.*, upa.can_download, upa.assigned_date, f.name as folder_name
+        FROM pdfs p
+        JOIN user_pdf_access upa ON p.id = upa.pdf_id
+        LEFT JOIN folders f ON p.folder_id = f.id
+        WHERE upa.user_id = ?
+        ORDER BY f.name, p.original_filename
     ''', (current_user.id,)).fetchall()
     
     conn.close()

@@ -29,31 +29,150 @@
                 font-size: 16px;
             }
         }
+
+        /* Sidebar styles */
+        .sidebar {
+            transition: all 0.3s;
+        }
+        
+        .sidebar-item {
+            transition: all 0.2s;
+        }
+        
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid #fff;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Card hover effects */
+        .hover-card {
+            transition: all 0.2s ease;
+        }
+        
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen flex flex-col">
     <!-- Navigation -->
     {% if current_user.is_authenticated %}
-    <nav class="bg-white shadow-sm border-b">
+    <nav class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg">
         <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-            <div class="flex justify-between h-14 sm:h-16">
+            <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <h1 class="text-lg sm:text-xl font-semibold text-gray-900">
-                        <i class="fas fa-file-pdf text-red-500 mr-1 sm:mr-2"></i>
-                        <span class="hidden sm:inline">PDF Management</span>
-                        <span class="sm:hidden">PDFs</span>
-                    </h1>
+                    <a href="{{ url_for('index') }}" class="flex items-center">
+                        <i class="fas fa-file-pdf text-red-400 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold">PDF Manager</span>
+                    </a>
+                    <div class="hidden md:ml-10 md:flex md:space-x-8">
+                        {% if current_user.is_admin %}
+                        <a href="{{ url_for('admin_dashboard') }}" class="flex items-center px-3 py-2 text-sm font-medium {% if request.path == url_for('admin_dashboard') %}text-white border-b-2 border-white{% else %}text-blue-200 hover:text-white hover:border-b-2 hover:border-blue-200{% endif %}">
+                            <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
+                        </a>
+                        <a href="{{ url_for('access_management') }}" class="flex items-center px-3 py-2 text-sm font-medium {% if request.path == url_for('access_management') %}text-white border-b-2 border-white{% else %}text-blue-200 hover:text-white hover:border-b-2 hover:border-blue-200{% endif %}">
+                            <i class="fas fa-key mr-1"></i> Access Management
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('user_dashboard') }}" class="flex items-center px-3 py-2 text-sm font-medium {% if request.path == url_for('user_dashboard') %}text-white border-b-2 border-white{% else %}text-blue-200 hover:text-white hover:border-b-2 hover:border-blue-200{% endif %}">
+                            <i class="fas fa-home mr-1"></i> My Dashboard
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="flex items-center space-x-2 sm:space-x-4">
-                    <span class="text-sm sm:text-base text-gray-700 truncate max-w-24 sm:max-w-none">
-                        <span class="hidden sm:inline">Welcome, </span>{{ current_user.username }}
-                    </span>
-                    {% if current_user.is_admin %}
-                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-1.5 sm:px-2.5 py-0.5 rounded">Admin</span>
-                    {% endif %}
-                    <a href="{{ url_for('logout') }}" class="text-gray-500 hover:text-gray-700 p-1">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span class="hidden sm:inline ml-1">Logout</span>
+                <div class="flex items-center">
+                    <div class="hidden md:flex items-center">
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" class="flex items-center text-sm font-medium text-white hover:text-blue-200 focus:outline-none focus:text-white transition duration-150 ease-in-out">
+                                <span class="mr-2">{{ current_user.username }}</span>
+                                {% if current_user.is_admin %}
+                                <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">Admin</span>
+                                {% else %}
+                                <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded">User</span>
+                                {% endif %}
+                                <i class="fas fa-chevron-down ml-1"></i>
+                            </button>
+                            <div x-show="open" @click.away="open = false" class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg">
+                                <div class="py-1 rounded-md bg-white shadow-xs">
+                                    <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition duration-150 ease-in-out">
+                                        <i class="fas fa-sign-out-alt mr-2"></i> Sign out
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex md:hidden">
+                        <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-blue-200 hover:text-white hover:bg-blue-800 focus:outline-none focus:bg-blue-800 focus:text-white transition duration-150 ease-in-out">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-blue-800">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('admin_dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium {% if request.path == url_for('admin_dashboard') %}text-white bg-blue-900{% else %}text-blue-200 hover:text-white hover:bg-blue-700{% endif %}">
+                    <i class="fas fa-tachometer-alt mr-1"></i> Dashboard
+                </a>
+                <a href="{{ url_for('access_management') }}" class="block px-3 py-2 rounded-md text-base font-medium {% if request.path == url_for('access_management') %}text-white bg-blue-900{% else %}text-blue-200 hover:text-white hover:bg-blue-700{% endif %}">
+                    <i class="fas fa-key mr-1"></i> Access Management
+                </a>
+                {% else %}
+                <a href="{{ url_for('user_dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium {% if request.path == url_for('user_dashboard') %}text-white bg-blue-900{% else %}text-blue-200 hover:text-white hover:bg-blue-700{% endif %}">
+                    <i class="fas fa-home mr-1"></i> My Dashboard
+                </a>
+                {% endif %}
+            </div>
+            <div class="pt-4 pb-3 border-t border-blue-700">
+                <div class="flex items-center px-5">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-user-circle text-2xl text-blue-200"></i>
+                    </div>
+                    <div class="ml-3">
+                        <div class="text-base font-medium text-white">{{ current_user.username }}</div>
+                        <div class="text-sm font-medium text-blue-200">{{ current_user.email }}</div>
+                    </div>
+                </div>
+                <div class="mt-3 px-2 space-y-1">
+                    <a href="{{ url_for('logout') }}" class="block px-3 py-2 rounded-md text-base font-medium text-blue-200 hover:text-white hover:bg-blue-700">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Sign out
                     </a>
                 </div>
             </div>
@@ -66,7 +185,7 @@
         {% if messages %}
         <div class="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 mt-2 sm:mt-4">
             {% for message in messages %}
-            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-2 sm:mb-4 text-sm sm:text-base">
+            <div class="bg-blue-50 border border-blue-200 text-blue-700 px-3 sm:px-4 py-2 sm:py-3 rounded mb-2 sm:mb-4 text-sm sm:text-base fade-in">
                 {{ message }}
             </div>
             {% endfor %}
@@ -75,8 +194,119 @@
     {% endwith %}
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto py-3 sm:py-6 px-2 sm:px-6 lg:px-8">
-        {% block content %}{% endblock %}
+    <main class="flex-grow">
+        {% if current_user.is_authenticated and current_user.is_admin and request.path.startswith('/admin') %}
+        <div class="flex">
+            <!-- Admin Sidebar -->
+            <div class="hidden md:block bg-gradient-to-b from-gray-800 to-gray-900 text-white w-64 min-h-screen sidebar">
+                <div class="p-4">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-cogs mr-2"></i> Admin Controls
+                    </h2>
+                    <nav class="space-y-1">
+                        <a href="{{ url_for('admin_dashboard') }}" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md {% if request.path == url_for('admin_dashboard') %}active{% endif %}">
+                            <i class="fas fa-tachometer-alt w-5 mr-2"></i>
+                            Dashboard
+                        </a>
+                        <a href="{{ url_for('access_management') }}" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md {% if request.path == url_for('access_management') %}active{% endif %}">
+                            <i class="fas fa-key w-5 mr-2"></i>
+                            Access Management
+                        </a>
+                        <div class="pt-4 mt-4 border-t border-gray-700">
+                            <h3 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                Content
+                            </h3>
+                            <div class="mt-2 space-y-1">
+                                <a href="#folders-section" class="sidebar-item flex items-center px-4 py-2 text-sm font-medium rounded-md">
+                                    <i class="fas fa-folder w-5 mr-2"></i>
+                                    Folders
+                                </a>
+                                <a href="#pdfs-section" class="sidebar-item flex items-center px-4 py-2 text-sm font-medium rounded-md">
+                                    <i class="fas fa-file-pdf w-5 mr-2"></i>
+                                    PDFs
+                                </a>
+                            </div>
+                        </div>
+                        <div class="pt-4 mt-4 border-t border-gray-700">
+                            <h3 class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                Users
+                            </h3>
+                            <div class="mt-2 space-y-1">
+                                <a href="#users-section" class="sidebar-item flex items-center px-4 py-2 text-sm font-medium rounded-md">
+                                    <i class="fas fa-users w-5 mr-2"></i>
+                                    Manage Users
+                                </a>
+                                <a href="#add-user-section" class="sidebar-item flex items-center px-4 py-2 text-sm font-medium rounded-md">
+                                    <i class="fas fa-user-plus w-5 mr-2"></i>
+                                    Add User
+                                </a>
+                            </div>
+                        </div>
+                    </nav>
+                </div>
+            </div>
+            <!-- Main Content Area -->
+            <div class="flex-1">
+                <div class="py-6">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="py-6">
+            {% block content %}{% endblock %}
+        </div>
+        {% endif %}
     </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    &copy; 2025 PDF Management System
+                </div>
+                <div class="text-sm text-gray-500">
+                    <a href="#" class="hover:text-gray-700">Privacy Policy</a>
+                    <span class="mx-2">|</span>
+                    <a href="#" class="hover:text-gray-700">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Alpine.js for dropdowns -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.2/dist/alpine.min.js" defer></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            if (mobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', function() {
+                    mobileMenu.classList.toggle('hidden');
+                });
+            }
+            
+            // Add smooth scrolling for sidebar links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    
+                    const targetId = this.getAttribute('href');
+                    const targetElement = document.querySelector(targetId);
+                    
+                    if (targetElement) {
+                        targetElement.scrollIntoView({
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>

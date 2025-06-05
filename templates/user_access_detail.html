@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} Access Details - PDF Management{% endblock %}
+
+{% block content %}
+<div class="px-2 sm:px-4 lg:px-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4 sm:mb-6">
+        <div class="flex items-center min-w-0 flex-1">
+            <a href="{{ url_for('access_management') }}" 
+               class="text-gray-500 hover:text-gray-700 mr-2 sm:mr-4 flex-shrink-0">
+                <i class="fas fa-arrow-left"></i>
+                <span class="hidden sm:inline ml-1">Back</span>
+            </a>
+            <div class="min-w-0">
+                <h1 class="text-xl sm:text-2xl font-semibold text-gray-900">{{ user.username }} Access Details</h1>
+                <p class="text-sm text-gray-600">{{ user.email }}</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                <i class="fas fa-folder mr-1"></i>{{ folder_access|length }} folders
+            </span>
+            <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm">
+                <i class="fas fa-file-pdf mr-1"></i>{{ pdf_access|length }} PDFs
+            </span>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <!-- Assign Folder -->
+        <div class="bg-white shadow rounded-lg p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">
+                <i class="fas fa-folder-plus text-yellow-500 mr-2"></i>Assign Folder
+            </h3>
+            {% if available_folders %}
+            <form method="POST" action="{{ url_for('assign_folder') }}" class="space-y-3">
+                <input type="hidden" name="folder_user_id" value="{{ user.id }}">
+                <select name="folder_assign_id" required class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                    <option value="">Select Folder</option>
+                    {% for folder in available_folders %}
+                    <option value="{{ folder.id }}">{{ folder.name }}</option>
+                    {% endfor %}
+                </select>
+                <div class="flex items-center">
+                    <input type="checkbox" name="folder_can_download" id="folder_can_download" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <label for="folder_can_download" class="ml-2 block text-sm text-gray-900">Allow Download</label>
+                </div>
+                <button type="submit" class="w-full bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 text-sm font-medium">
+                    Assign Folder
+                </button>
+            </form>
+            {% else %}
+            <p class="text-gray-500 text-sm">All folders are already assigned to this user.</p>
+            {% endif %}
+        </div>
+
+        <!-- Assign PDF -->
+        <div class="bg-white shadow rounded-lg p-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">
+                <i class="fas fa-file-plus text-red-500 mr-2"></i>Assign PDF
+            </h3>
+            {% if available_pdfs %}
+            <form method="POST" action="{{ url_for('assign_pdf') }}" class="space-y-3">
+                <input type="hidden" name="user_id" value="{{ user.id }}">
+                <select name="pdf_id" required class="block w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500 text-sm">
+                    <option value="">Select PDF</option>
+                    {% for pdf in available_pdfs %}
+                    <option value="{{ pdf.id }}">{{ pdf.original_filename }} ({{ pdf.folder_name or 'No Folder' }})</option>
+                    {% endfor %}
+                </select>
+                <div class="flex items-center">
+                    <input type="checkbox" name="can_download" id="can_download" class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded">
+                    <label for="can_download" class="ml-2 block text-sm text-gray-900">Allow Download</label>
+                </div>
+                <button type="submit" class="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-medium">
+                    Assign PDF
+                </button>
+            </form>
+            {% else %}
+            <p class="text-gray-500 text-sm">All PDFs are already assigned to this user.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Folder Access -->
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                <i class="fas fa-folder text-yellow-500 mr-2"></i>Folder Access ({{ folder_access|length }})
+            </h3>
+            {% if folder_access %}
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for access in folder_access %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-base font-medium text-gray-900 truncate">{{ access.folder_name }}</h4>
+                            <p class="text-sm text-gray-600 mt-1">{{ access.description or 'No description' }}</p>
+                            <p class="text-xs text-gray-500 mt-2">Assigned: {{ access.assigned_date[:10] }}</p>
+                            {% if access.can_download %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                                <i class="fas fa-download mr-1"></i>Download
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 mt-2">
+                                <i class="fas fa-eye mr-1"></i>View Only
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <form method="POST" action="{{ url_for('revoke_folder_access') }}" class="inline" 
+                              onsubmit="return confirm('Are you sure you want to revoke access to {{ access.folder_name }}?')">
+                            <input type="hidden" name="user_id" value="{{ user.id }}">
+                            <input type="hidden" name="folder_id" value="{{ access.folder_id }}">
+                            <button type="submit" class="w-full bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700">
+                                <i class="fas fa-times mr-1"></i>Revoke Access
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-8">No folder access assigned.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PDF Access -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+                <i class="fas fa-file-pdf text-red-500 mr-2"></i>PDF Access ({{ pdf_access|length }})
+            </h3>
+            {% if pdf_access %}
+            <div class="mobile-scroll">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-300 mobile-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PDF</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Folder</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Permissions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            {% for access in pdf_access %}
+                            <tr>
+                                <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                                    <div class="truncate max-w-48">{{ access.original_filename }}</div>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% if access.folder_name %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        <i class="fas fa-folder mr-1"></i>{{ access.folder_name }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-gray-400">No Folder</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {% if access.can_download %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        <i class="fas fa-download mr-1"></i>Download
+                                    </span>
+                                    {% else %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        <i class="fas fa-eye mr-1"></i>View Only
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {{ access.assigned_date[:10] }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    <form method="POST" action="{{ url_for('revoke_pdf_access') }}" class="inline" 
+                                          onsubmit="return confirm('Are you sure you want to revoke access to {{ access.original_filename }}?')">
+                                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                                        <input type="hidden" name="pdf_id" value="{{ access.pdf_id }}">
+                                        <button type="submit" class="text-red-600 hover:text-red-900">
+                                            <i class="fas fa-times"></i> Revoke
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-center py-8">No PDF access assigned.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
