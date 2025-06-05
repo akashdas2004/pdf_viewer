@@ -43,58 +43,88 @@ def get_db_connection():
 
 def init_db():
     """Initialize the database with required tables"""
-    conn = get_db_connection()
-    
-    # Users table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            is_admin BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    
-    # PDFs table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS pdfs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL,
-            original_filename TEXT NOT NULL,
-            file_path TEXT NOT NULL,
-            uploaded_by INTEGER,
-            upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (uploaded_by) REFERENCES users (id)
-        )
-    ''')
-    
-    # User PDF access table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS user_pdf_access (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            pdf_id INTEGER,
-            can_download BOOLEAN DEFAULT FALSE,
-            assigned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id),
-            FOREIGN KEY (pdf_id) REFERENCES pdfs (id),
-            UNIQUE(user_id, pdf_id)
-        )
-    ''')
-    
-    # Create default admin user if it doesn't exist
-    admin_exists = conn.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
-    if not admin_exists:
-        admin_password = generate_password_hash('admin123')
-        conn.execute(
-            'INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
-            ('admin', 'admin@example.com', admin_password, True)
-        )
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        
+        # Users table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                is_admin BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # PDFs table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS pdfs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                filename TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                uploaded_by INTEGER,
+                upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (uploaded_by) REFERENCES users (id)
+            )
+        ''')
+        
+        # User PDF access table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS user_pdf_access (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                pdf_id INTEGER,
+                can_download BOOLEAN DEFAULT FALSE,
+                assigned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (pdf_id) REFERENCES pdfs (id),
+                UNIQUE(user_id, pdf_id)
+            )
+        ''')
+        
+        # Create default admin user if it doesn't exist
+        admin_exists = conn.execute('SELECT id FROM users WHERE username = ?', ('admin',)).fetchone()
+        if not admin_exists:
+            admin_password = generate_password_hash('admin123')
+            conn.execute(
+                'INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+                ('admin', 'admin@example.com', admin_password, True)
+            )
+            print("Created default admin user: admin/admin123")
+        
+        # Create sample users if they don't exist
+        sample_users = [
+            ('john_doe', 'john@example.com', 'password123'),
+            ('jane_smith', 'jane@example.com', 'password123'),
+            ('bob_wilson', 'bob@example.com', 'password123'),
+        ]
+        
+        for username, email, password in sample_users:
+            user_exists = conn.execute('SELECT id FROM users WHERE username = ?', (username,)).fetchone()
+            if not user_exists:
+                password_hash = generate_password_hash(password)
+                conn.execute(
+                    'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+                    (username, email, password_hash)
+                )
+                print(f"Created sample user: {username}/password123")
+        
+        conn.commit()
+        conn.close()
+        print("Database initialized successfully!")
+        
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+        # Try to create database file if it doesn't exist
+        try:
+            open('database.db', 'a').close()
+            print("Created database file, retrying initialization...")
+            init_db()  # Retry once
+        except Exception as retry_error:
+            print(f"Failed to create database: {retry_error}")
 
 @app.route('/')
 def index():
@@ -342,11 +372,106 @@ def download_pdf(pdf_id):
     
     return send_file(pdf['file_path'], as_attachment=True, download_name=pdf['original_filename'])
 
+@app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
+@login_required
+def delete_user(user_id):
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        conn = get_db_connection()
+        
+        # Check if user exists and is not an admin
+        user = conn.execute('SELECT * FROM users WHERE id = ? AND is_admin = FALSE', (user_id,)).fetchone()
+        if not user:
+            flash('User not found or cannot delete admin users')
+            conn.close()
+            return redirect(url_for('admin_dashboard'))
+        
+        # Delete user's PDF access records first (foreign key constraint)
+        conn.execute('DELETE FROM user_pdf_access WHERE user_id = ?', (user_id,))
+        
+        # Delete the user
+        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        
+        conn.commit()
+        conn.close()
+        flash(f'User "{user["username"]}" deleted successfully')
+    except Exception as e:
+        flash('Error deleting user')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/delete_pdf/<int:pdf_id>', methods=['POST'])
+@login_required
+def delete_pdf(pdf_id):
+    if not current_user.is_admin:
+        abort(403)
+    
+    try:
+        conn = get_db_connection()
+        
+        # Get PDF info before deletion
+        pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
+        if not pdf:
+            flash('PDF not found')
+            conn.close()
+            return redirect(url_for('admin_dashboard'))
+        
+        # Delete user access records first (foreign key constraint)
+        conn.execute('DELETE FROM user_pdf_access WHERE pdf_id = ?', (pdf_id,))
+        
+        # Delete PDF record from database
+        conn.execute('DELETE FROM pdfs WHERE id = ?', (pdf_id,))
+        
+        conn.commit()
+        conn.close()
+        
+        # Delete physical file
+        try:
+            if os.path.exists(pdf['file_path']):
+                os.remove(pdf['file_path'])
+        except Exception as file_error:
+            print(f"Warning: Could not delete file {pdf['file_path']}: {file_error}")
+        
+        flash(f'PDF "{pdf["original_filename"]}" deleted successfully')
+    except Exception as e:
+        flash('Error deleting PDF')
+    
+    return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/add_admin', methods=['POST'])
+@login_required
+def add_admin():
+    if not current_user.is_admin:
+        abort(403)
+    
+    username = request.form['admin_username']
+    email = request.form['admin_email']
+    password = request.form['admin_password']
+    
+    if not username or not email or not password:
+        flash('All fields are required for admin creation')
+        return redirect(url_for('admin_dashboard'))
+    
+    password_hash = generate_password_hash(password)
+    
+    try:
+        conn = get_db_connection()
+        conn.execute(
+            'INSERT INTO users (username, email, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+            (username, email, password_hash, True)
+        )
+        conn.commit()
+        conn.close()
+        flash(f'Admin user "{username}" created successfully')
+    except sqlite3.IntegrityError:
+        flash('Username or email already exists')
+    
+    return redirect(url_for('admin_dashboard'))
+
+# Initialize database on startup (for all environments)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
-    # Use different settings for development vs production
-    import os
-    if os.environ.get('FLASK_ENV') == 'production':
-        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-    else:
-        app.run(debug=True)
+    app.run(debug=True)
