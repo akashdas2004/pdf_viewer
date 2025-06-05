@@ -291,27 +291,44 @@ def view_pdf(pdf_id):
     # Check if user has access to this PDF
     conn = get_db_connection()
     
-    if current_user.is_admin:
-        pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
-        can_download = True
-    else:
-        access = conn.execute('''
-            SELECT p.*, upa.can_download
-            FROM pdfs p
-            JOIN user_pdf_access upa ON p.id = upa.pdf_id
-            WHERE p.id = ? AND upa.user_id = ?
-        ''', (pdf_id, current_user.id)).fetchone()
+    try:
+        if current_user.is_admin:
+            pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
+            can_download = True
+        else:
+            access = conn.execute('''
+                SELECT p.*, upa.can_download
+                FROM pdfs p
+                JOIN user_pdf_access upa ON p.id = upa.pdf_id
+                WHERE p.id = ? AND upa.user_id = ?
+            ''', (pdf_id, current_user.id)).fetchone()
+            
+            if not access:
+                conn.close()
+                flash('You do not have access to this PDF')
+                return redirect(url_for('user_dashboard'))
+            
+            pdf = access
+            can_download = access['can_download']
         
-        if not access:
-            conn.close()
-            abort(403)
+        conn.close()
         
-        pdf = access
-        can_download = access['can_download']
-    
-    conn.close()
-    
-    return render_template('pdf_viewer.html', pdf=pdf, can_download=can_download)
+        if not pdf:
+            flash('PDF not found')
+            return redirect(url_for('user_dashboard'))
+        
+        # Check if file exists
+        if not os.path.exists(pdf['file_path']):
+            flash('PDF file not found on server')
+            return redirect(url_for('user_dashboard'))
+        
+        return render_template('pdf_viewer.html', pdf=pdf, can_download=can_download)
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error in view_pdf: {e}")
+        flash('Error accessing PDF')
+        return redirect(url_for('user_dashboard'))
 
 @app.route('/serve_pdf/<int:pdf_id>')
 @login_required
@@ -319,27 +336,38 @@ def serve_pdf(pdf_id):
     # Check if user has access to this PDF
     conn = get_db_connection()
     
-    if current_user.is_admin:
-        pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
-    else:
-        access = conn.execute('''
-            SELECT p.*
-            FROM pdfs p
-            JOIN user_pdf_access upa ON p.id = upa.pdf_id
-            WHERE p.id = ? AND upa.user_id = ?
-        ''', (pdf_id, current_user.id)).fetchone()
+    try:
+        if current_user.is_admin:
+            pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
+        else:
+            access = conn.execute('''
+                SELECT p.*
+                FROM pdfs p
+                JOIN user_pdf_access upa ON p.id = upa.pdf_id
+                WHERE p.id = ? AND upa.user_id = ?
+            ''', (pdf_id, current_user.id)).fetchone()
+            
+            if not access:
+                conn.close()
+                abort(403)
+            pdf = access
         
-        if not access:
-            conn.close()
-            abort(403)
-        pdf = access
-    
-    conn.close()
-    
-    if not pdf:
-        abort(404)
-    
-    return send_file(pdf['file_path'], as_attachment=False, mimetype='application/pdf')
+        conn.close()
+        
+        if not pdf:
+            abort(404)
+        
+        # Check if file exists
+        if not os.path.exists(pdf['file_path']):
+            print(f"File not found: {pdf['file_path']}")
+            abort(404)
+        
+        return send_file(pdf['file_path'], as_attachment=False, mimetype='application/pdf')
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error in serve_pdf: {e}")
+        abort(500)
 
 @app.route('/download_pdf/<int:pdf_id>')
 @login_required
@@ -347,30 +375,44 @@ def download_pdf(pdf_id):
     # Check if user has download permission
     conn = get_db_connection()
     
-    if current_user.is_admin:
-        pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
-        can_download = True
-    else:
-        access = conn.execute('''
-            SELECT p.*, upa.can_download
-            FROM pdfs p
-            JOIN user_pdf_access upa ON p.id = upa.pdf_id
-            WHERE p.id = ? AND upa.user_id = ? AND upa.can_download = TRUE
-        ''', (pdf_id, current_user.id)).fetchone()
+    try:
+        if current_user.is_admin:
+            pdf = conn.execute('SELECT * FROM pdfs WHERE id = ?', (pdf_id,)).fetchone()
+            can_download = True
+        else:
+            access = conn.execute('''
+                SELECT p.*, upa.can_download
+                FROM pdfs p
+                JOIN user_pdf_access upa ON p.id = upa.pdf_id
+                WHERE p.id = ? AND upa.user_id = ? AND upa.can_download = TRUE
+            ''', (pdf_id, current_user.id)).fetchone()
+            
+            if not access:
+                conn.close()
+                flash('You do not have download permission for this PDF')
+                return redirect(url_for('user_dashboard'))
+            
+            pdf = access
+            can_download = access['can_download']
         
-        if not access:
-            conn.close()
-            abort(403)
+        conn.close()
         
-        pdf = access
-        can_download = access['can_download']
-    
-    conn.close()
-    
-    if not pdf or not can_download:
-        abort(403)
-    
-    return send_file(pdf['file_path'], as_attachment=True, download_name=pdf['original_filename'])
+        if not pdf or not can_download:
+            flash('Download not allowed')
+            return redirect(url_for('user_dashboard'))
+        
+        # Check if file exists
+        if not os.path.exists(pdf['file_path']):
+            flash('PDF file not found on server')
+            return redirect(url_for('user_dashboard'))
+        
+        return send_file(pdf['file_path'], as_attachment=True, download_name=pdf['original_filename'])
+        
+    except Exception as e:
+        conn.close()
+        print(f"Error in download_pdf: {e}")
+        flash('Error downloading PDF')
+        return redirect(url_for('user_dashboard'))
 
 @app.route('/admin/delete_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -469,6 +511,30 @@ def add_admin():
         flash('Username or email already exists')
     
     return redirect(url_for('admin_dashboard'))
+
+# Debug route to check PDF assignments
+@app.route('/debug/assignments')
+@login_required
+def debug_assignments():
+    if not current_user.is_admin:
+        abort(403)
+    
+    conn = get_db_connection()
+    assignments = conn.execute('''
+        SELECT u.username, p.original_filename, upa.can_download, upa.assigned_date
+        FROM user_pdf_access upa
+        JOIN users u ON upa.user_id = u.id
+        JOIN pdfs p ON upa.pdf_id = p.id
+        ORDER BY upa.assigned_date DESC
+    ''').fetchall()
+    conn.close()
+    
+    result = "<h2>PDF Assignments Debug</h2><table border='1'><tr><th>User</th><th>PDF</th><th>Can Download</th><th>Assigned Date</th></tr>"
+    for assignment in assignments:
+        result += f"<tr><td>{assignment['username']}</td><td>{assignment['original_filename']}</td><td>{assignment['can_download']}</td><td>{assignment['assigned_date']}</td></tr>"
+    result += "</table>"
+    
+    return result
 
 # Initialize database on startup (for all environments)
 init_db()
