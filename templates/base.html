@@ -190,12 +190,15 @@
             </div>
             {% endfor %}
         </div>
-        {% endif %}
+    {% endif %}
     {% endwith %}
 
     <!-- Main Content -->
     <main class="flex-grow">
-        {% if current_user.is_authenticated and current_user.is_admin and request.path.startswith('/admin') %}
+        {% set show_admin_sidebar = current_user.is_authenticated and current_user.is_admin and request.path.startswith('/admin') %}
+        
+        {% if show_admin_sidebar %}
+        <!-- Admin Layout with Sidebar -->
         <div class="flex">
             <!-- Admin Sidebar -->
             <div class="hidden md:block bg-gradient-to-b from-gray-800 to-gray-900 text-white w-64 min-h-screen sidebar">
@@ -245,13 +248,13 @@
                     </nav>
                 </div>
             </div>
-            <!-- Main Content Area with Sidebar -->
+            <!-- Content Area with Sidebar -->
             <div class="flex-1 py-6">
                 {% block content %}{% endblock %}
             </div>
         </div>
         {% else %}
-        <!-- Main Content Area without Sidebar -->
+        <!-- Content Area without Sidebar -->
         <div class="py-6">
             {% block content %}{% endblock %}
         </div>
